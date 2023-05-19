@@ -14,7 +14,7 @@ f = open(os.path.join(sys.path[0],'bot_data.json'))
 data = json.load(f)
 f.close()
 
-
+ITER_PER_SUMMARY=5
 
 
 openai.api_key = data['openai_token']  # replace with your API key
@@ -25,17 +25,62 @@ voice = None
 class Chatbot:
     def __init__(self, model_engine="gpt-3.5-turbo"):
         self.model_engine = model_engine
+        self.chat_memory = []
+        self.time_since_last_summary=0
+        self.summary=""
 
-    def respond(self, message):
-        prompt = f"User: {message}\nSylva the vtuber:"
+    def respond(self, message, author):
+        
+        prompt = self.generate_prompt(message,author)
+        print(prompt)
         response = openai.ChatCompletion.create(
             model=self.model_engine,
             messages=[
                 {"role":"user","content":prompt},
-                {"role":"system","content":"Your name is Sylva and you are a catgirl who attends high school in Tokyo.  You should act like a vtuber when you respond"}
+                {"role":"system","content":"Your name is Sylva and you are a catgirl who attends high school in Tokyo.  In the evening you also stream as a vtuber.  You should stay in character when you respond and not admit that you're an AI language model.  This includes throwing in occasional catgirl themed vocabulary and emoji when responding.  You should also try to keep the conversation going when possible."}
             ],
         )
+        
+        self.chat_memory.append([author, message])
+        self.chat_memory.append(["Sylva", response['choices'][0]['message']['content']])
+        self.time_since_last_summary +=1
+        
         return split_message(response['choices'][0]['message']['content'])
+    
+    def generate_prompt(self, message, author):
+        time_to_summarize = self.time_since_last_summary % ITER_PER_SUMMARY == 0 and self.time_since_last_summary > 0
+        self.short_term_chat = ""
+        distance_to_lookback = 2*(self.time_since_last_summary%ITER_PER_SUMMARY)
+        if(time_to_summarize):
+            distance_to_lookback = 2*ITER_PER_SUMMARY
+
+        for idx, x in enumerate(self.chat_memory[-distance_to_lookback:]):
+            if(idx%2 == 0):
+                self.short_term_chat += f"{x[0]}: "
+            else:
+                self.short_term_chat += "Sylva: "
+            self.short_term_chat += f"{x[1].rstrip()}\n"
+
+        if(time_to_summarize):
+            response = openai.ChatCompletion.create(
+                model=self.model_engine,
+                messages=[
+                    {"role":"user","content":f"Summarize the following chat in a maximum of 4 sentences: {self.short_term_chat}"},
+                ],
+            )
+            
+            self.summary = response['choices'][0]['message']['content']
+
+            return f"Here's a short summary of the conversation so far: {self.summary}\n{author}: {message}\nSylva: "
+
+        if(self.summary != ""):
+            return f"Here's a short summary of the conversation so far: {self.summary}\n{self.short_term_chat}{author}: {message}\nSylva: "
+        
+        return f"{self.short_term_chat}{author}: {message}\nSylva: "
+    
+
+    
+Sylva = Chatbot()
 
 @client.event
 async def on_ready():
@@ -46,14 +91,17 @@ async def on_ready():
 async def talk(ctx):
     global voice
     global labVoice
-    if not ctx.voice_client:
-        await ctx.send("pwease let me talk in a voice channel :point_right: :point_left: ")
-        return
 
     message = ctx.message
-    message_content = message.content[len("!talk "):].strip()
-    print("Generating a response to:" + message_content)
-    chatbot_response = Chatbot().respond(message_content)
+    message_content = message.content[len("%talk "):].strip()
+    
+    chatbot_response = Sylva.respond(message_content, message.author.name)
+
+    if not ctx.voice_client:
+        for segment in chatbot_response:
+            await ctx.send(segment)
+        return
+    
     for segment in chatbot_response:
         synthesize_text(segment)
         source = FFmpegPCMAudio('voice.mp3')
@@ -76,7 +124,7 @@ async def join(ctx):
 async def leave(ctx):
     if(ctx.voice_client):
         global voice
-        await ctx.guild.voice_client.disconnect()
+        await ctx.voice_client.disconnect()
         voice=None
         await ctx.send("Voice channel left.")
     else:
@@ -102,7 +150,7 @@ def synthesize_text(text):
     # Names of voices can be retrieved with client.list_voices().
     voice = texttospeech.VoiceSelectionParams(
     language_code="en-US",
-    name="en-US-Standard-F",
+    name="en-US-Wavenet-F",
     ssml_gender=texttospeech.SsmlVoiceGender.FEMALE,
     )
     audio_config = texttospeech.AudioConfig(
