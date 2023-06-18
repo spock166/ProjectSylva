@@ -14,7 +14,7 @@ f = open(os.path.join(sys.path[0],'bot_data.json'))
 data = json.load(f)
 f.close()
 
-ITER_PER_SUMMARY=5
+ITER_PER_SUMMARY=7
 
 
 openai.api_key = data['openai_token']  # replace with your API key
@@ -23,7 +23,7 @@ client = commands.Bot(command_prefix = '%', intents=intents, help_command=comman
 voice = None
 
 class Chatbot:
-    def __init__(self, model_engine="gpt-3.5-turbo"):
+    def __init__(self, model_engine="gpt-3.5-turbo-16k"):
         self.model_engine = model_engine
         self.chat_memory = []
         self.time_since_last_summary=0
@@ -65,7 +65,7 @@ class Chatbot:
             response = openai.ChatCompletion.create(
                 model=self.model_engine,
                 messages=[
-                    {"role":"user","content":f"Summarize the following chat in a maximum of 4 sentences: {self.short_term_chat}"},
+                    {"role":"user","content":f"Summarize the following chat in a maximum of 5 sentences: {self.short_term_chat}"},
                 ],
             )
             
@@ -97,17 +97,12 @@ async def talk(ctx):
     
     chatbot_response = Sylva.respond(message_content, message.author.name)
 
-    if not ctx.voice_client:
-        for segment in chatbot_response:
-            await ctx.send(segment)
-        return
-    
     for segment in chatbot_response:
-        synthesize_text(segment)
-        source = FFmpegPCMAudio('voice.mp3')
-        if(voice):
-            voice.play(source)
         await ctx.send(segment)
+        if ctx.voice_client and voice:
+            await synthesize_text(segment)
+            voice.play(FFmpegPCMAudio('voice.mp3'))
+    
         
 
 @client.command(pass_contenxt = True)
@@ -141,7 +136,7 @@ def split_message(msg, maxLength = 2000):
     output.append(msg)
     return output
     
-def synthesize_text(text):
+async def synthesize_text(text):
     """Synthesizes speech from the input string of text."""
 
     client = texttospeech.TextToSpeechClient()
