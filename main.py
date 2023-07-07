@@ -23,7 +23,7 @@ client = commands.Bot(command_prefix = '%', intents=intents, help_command=comman
 voice = None
 
 class Chatbot:
-    def __init__(self, model_engine="gpt-3.5-turbo-16k"):
+    def __init__(self, model_engine="gpt-4"):
         self.model_engine = model_engine
         self.chat_memory = []
         self.time_since_last_summary=0
