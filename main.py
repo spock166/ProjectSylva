@@ -34,9 +34,7 @@ class Chatbot:
         self.summary = ""
 
     def respond(self, message, author):
-
         prompt = self.generate_prompt(message, author)
-        print(prompt)
         response = openai.ChatCompletion.create(
             model=self.model_engine,
             messages=[
@@ -99,6 +97,7 @@ async def talk(ctx):
     global voice
     global labVoice
 
+    await ctx.message.add_reaction("😼")
     message = ctx.message
     message_content = message.content[len("%talk "):].strip()
 
