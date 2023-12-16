@@ -98,7 +98,8 @@ async def talk(ctx):
     global voice
     global labVoice
 
-    await ctx.message.add_reaction(random.choice(["😼" ,"🐱 "," 😹"," 🙀", "😾" ,"😻 "," 😺"," 😸", "😽" ,"🐾 "," 🐈"," 🐠", "🐟","🍥","🍣","🍙"]))
+    emojiList = ['😼', '🐱', '😹', '🙀', '😾',  '😻','😺', '😽', '🐾', '🐈', '🐠', '🐟', '🍥', '🍣', '🍙']
+    await ctx.message.add_reaction(random.choice(emojiList))
     message = ctx.message
     message_content = message.content[len("%talk "):].strip()
 
