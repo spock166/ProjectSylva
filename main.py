@@ -6,6 +6,7 @@ from discord.ext import commands
 from discord import FFmpegPCMAudio
 import openai
 from google.cloud import texttospeech
+import random
 
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.path.join(
     sys.path[0], 'GoogleTTS.json')
@@ -97,7 +98,7 @@ async def talk(ctx):
     global voice
     global labVoice
 
-    await ctx.message.add_reaction("😼")
+    await ctx.message.add_reaction(random.choice(["😼" ,"🐱 "," 😹"," 🙀", "😾" ,"😻 "," 😺"," 😸", "😽" ,"🐾 "," 🐈"," 🐠", "🐟","🍥","🍣","🍙"]))
     message = ctx.message
     message_content = message.content[len("%talk "):].strip()
 
