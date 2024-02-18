@@ -30,12 +30,17 @@ voice = None
 class Chatbot:
     def __init__(self, model_engine="gpt-4"):
         self.model_engine = model_engine
-        self.chat_memory = []
-        self.time_since_last_summary = 0
+        self.chat_memory = {}
+        self.time_since_last_summary = {}
         self.summary = ""
 
-    def respond(self, message, author):
-        prompt = self.generate_prompt(message, author)
+    def respond(self, message, author, channel_id):
+        if not channel_id in self.chat_memory:
+            self.chat_memory[channel_id] = []
+        if not channel_id in self.time_since_last_summary:
+            self.time_since_last_summary[channel_id] = 0
+
+        prompt = self.generate_prompt(message, author, channel_id)
         response = openai.ChatCompletion.create(
             model=self.model_engine,
             messages=[
@@ -44,22 +49,31 @@ class Chatbot:
             ],
         )
 
-        self.chat_memory.append([author, message])
-        self.chat_memory.append(
+        
+
+        self.chat_memory[channel_id].append([author, message])
+        self.chat_memory[channel_id].append(
             ["Sylva", response['choices'][0]['message']['content']])
-        self.time_since_last_summary += 1
+        self.time_since_last_summary[channel_id] += 1
+
+        print('=====Summary=====')
+        print('Channel:' + str(channel_id))
+        print('Time since last summary:' +
+              str(self.time_since_last_summary[channel_id]))
+        print('Channel memory size:' + str(len(self.chat_memory[channel_id])))
+        print('=================')
 
         return split_message(response['choices'][0]['message']['content'])
 
-    def generate_prompt(self, message, author):
-        time_to_summarize = self.time_since_last_summary % ITER_PER_SUMMARY == 0 and self.time_since_last_summary > 0
+    def generate_prompt(self, message, author, channel_id):
+        time_to_summarize = self.time_since_last_summary[channel_id] % ITER_PER_SUMMARY == 0 and self.time_since_last_summary[channel_id] > 0
         self.short_term_chat = ""
         distance_to_lookback = 2 * \
-            (self.time_since_last_summary % ITER_PER_SUMMARY)
+            (self.time_since_last_summary[channel_id] % ITER_PER_SUMMARY)
         if (time_to_summarize):
             distance_to_lookback = 2*ITER_PER_SUMMARY
 
-        for idx, x in enumerate(self.chat_memory[-distance_to_lookback:]):
+        for idx, x in enumerate(self.chat_memory[channel_id][-distance_to_lookback:]):
             if (idx % 2 == 0):
                 self.short_term_chat += f"{x[0]}: "
             else:
@@ -98,12 +112,15 @@ async def talk(ctx):
     global voice
     global labVoice
 
-    emojiList = ['😼', '🐱', '😹', '🙀', '😾',  '😻','😺', '😽', '🐾', '🐈', '🐠', '🐟', '🍥', '🍣', '🍙']
+    emojiList = ['😼', '🐱', '😹','😻','😺',
+                 '😽', '🐾', '🐈', '🐠', '🐟', '🍥', '🍣', '🍙']
     await ctx.message.add_reaction(random.choice(emojiList))
     message = ctx.message
     message_content = message.content[len("%talk "):].strip()
+    channel = ctx.message.channel.id
 
-    chatbot_response = Sylva.respond(message_content, message.author.name)
+    chatbot_response = Sylva.respond(
+        message_content, message.author.name, channel)
 
     for segment in chatbot_response:
         await ctx.send(segment)
