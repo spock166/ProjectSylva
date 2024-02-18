@@ -56,12 +56,15 @@ class Chatbot:
             ["Sylva", response['choices'][0]['message']['content']])
         self.time_since_last_summary[channel_id] += 1
 
-        print('=====Summary=====')
-        print('Channel:' + str(channel_id))
-        print('Time since last summary:' +
-              str(self.time_since_last_summary[channel_id]))
-        print('Channel memory size:' + str(len(self.chat_memory[channel_id])))
-        print('=================')
+        with open(str(channel_id) + '.json', 'w',encoding='utf-8') as f:
+            json.dump(self.chat_memory[channel_id], f, ensure_ascii=False, indent=4)
+        
+        # print('=====Summary=====')
+        # print('Channel:' + str(channel_id))
+        # print('Time since last summary:' +
+        #       str(self.time_since_last_summary[channel_id]))
+        # print('Channel memory size:' + str(len(self.chat_memory[channel_id])))
+        # print('=================')
 
         return split_message(response['choices'][0]['message']['content'])
 
