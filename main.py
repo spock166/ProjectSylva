@@ -32,13 +32,15 @@ class Chatbot:
         self.model_engine = model_engine
         self.chat_memory = {}
         self.time_since_last_summary = {}
-        self.summary = ""
+        self.summary = {}
 
     def respond(self, message, author, channel_id):
         if not channel_id in self.chat_memory:
             self.chat_memory[channel_id] = []
         if not channel_id in self.time_since_last_summary:
             self.time_since_last_summary[channel_id] = 0
+        if not channel_id in self.summary:
+            self.summary[channel_id] = ""
 
         prompt = self.generate_prompt(message, author, channel_id)
         response = openai.ChatCompletion.create(
@@ -91,12 +93,12 @@ class Chatbot:
                 ],
             )
 
-            self.summary = response['choices'][0]['message']['content']
+            self.summary[channel_id] = response['choices'][0]['message']['content']
 
-            return f"Here's a short summary of the conversation so far: {self.summary}\n{author}: {message}\nSylva: "
+            return f"Here's a short summary of the conversation so far: {self.summary[channel_id]}\n{author}: {message}\nSylva: "
 
-        if (self.summary != ""):
-            return f"Here's a short summary of the conversation so far: {self.summary}\n{self.short_term_chat}{author}: {message}\nSylva: "
+        if (self.summary[channel_id] != ""):
+            return f"Here's a short summary of the conversation so far: {self.summary[channel_id]}\n{self.short_term_chat}{author}: {message}\nSylva: "
 
         return f"{self.short_term_chat}{author}: {message}\nSylva: "
 
