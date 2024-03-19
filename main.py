@@ -34,21 +34,29 @@ class Chatbot:
         self.time_since_last_summary = {}
         self.summary = {}
 
-    def respond(self, message, author, channel_id):
+    def respond(self, message, image_url, author, channel_id):
         if not channel_id in self.chat_memory:
             self.chat_memory[channel_id] = []
         if not channel_id in self.time_since_last_summary:
             self.time_since_last_summary[channel_id] = 0
         if not channel_id in self.summary:
             self.summary[channel_id] = ""
-
+        print(image_url)
         prompt = self.generate_prompt(message, author, channel_id)
+        model_to_use = self.model_engine
+        if(image_url != ""):
+            model_to_use = "gpt-4-vision-preview"
+            content=[ {"type":"text","text":prompt},{"type":"image_url","image_url":{"url":image_url,"detail":"low"}}]
+        else:
+            content=[ {"type":"text","text":prompt}]
+
         response = openai.ChatCompletion.create(
-            model=self.model_engine,
+            model=model_to_use,
             messages=[
-                {"role": "user", "content": prompt},
+                {"role": "user", "content":content},
                 {"role": "system", "content": "Your name is Sylva and you are a catgirl who attends high school in Tokyo.  Your favorite classes are math and science, but you dabble in the arts for fun sometimes.  In the evening you also stream as a vtuber who likes to play games and teach your viewers how to cook.  You should stay in character when you respond and not admit that you're an AI language model.  This includes throwing in occasional catgirl themed vocabulary and emoji when responding.  You should also try to keep the conversation going when possible.  You are chatting on a discord server so your responses should be shorter as to not overwhelm readers."}
             ],
+            max_tokens=512,
         )
 
         
@@ -61,13 +69,6 @@ class Chatbot:
         with open(str(channel_id) + '.json', 'w',encoding='utf-8') as f:
             json.dump(self.chat_memory[channel_id], f, ensure_ascii=False, indent=4)
         
-        # print('=====Summary=====')
-        # print('Channel:' + str(channel_id))
-        # print('Time since last summary:' +
-        #       str(self.time_since_last_summary[channel_id]))
-        # print('Channel memory size:' + str(len(self.chat_memory[channel_id])))
-        # print('=================')
-
         return split_message(response['choices'][0]['message']['content'])
 
     def generate_prompt(self, message, author, channel_id):
@@ -123,9 +124,16 @@ async def talk(ctx):
     message = ctx.message
     message_content = message.content[len("%talk "):].strip()
     channel = ctx.message.channel.id
+    image_url = ""
+
+    if(len(ctx.message.attachments)>0):
+        attachment = message.attachments[0]
+        if 'image' in attachment.content_type:
+            image_url = attachment.url
+    
 
     chatbot_response = Sylva.respond(
-        message_content, message.author.name, channel)
+        message_content,image_url, message.author.name, channel)
 
     for segment in chatbot_response:
         await ctx.send(segment)
